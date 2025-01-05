@@ -27,9 +27,10 @@ const specProductFields = `
                 active,
                 sells,
                 views,
-                loved
+                loved,
+                updatedAt
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `
 
 
@@ -92,9 +93,9 @@ const transCats = async () => {
             `, [cat.title, cat.description, cat.thumbnail ? cat.thumbnail : '', itemCount[0].count + catCount[0].count, slug_, cat.is_active, 'software', cat.is_new ? 1 : 0])
         catIds[cat.folder_id] = { old: cat.folder_id, new: insert[0].insertId }
     }
-    try{
+    try {
         fs.unlinkSync('catIds.json');
-    }catch(e) {console.log(e)}
+    } catch (e) { console.log(e) }
     fs.writeFileSync('catIds.json', JSON.stringify(catIds))
     console.log('done!')
 }
@@ -117,8 +118,8 @@ const fillCats = async () => {
                     `, [catIds[trgCat[0].parent_id].new, catIds[id].new])
             }
         }
-        console.log('updating done!')
     })
+    console.log('updating done!')
 }
 
 const transProducts = async () => {
@@ -133,7 +134,7 @@ const transProducts = async () => {
             )
             for (const oldItem of oldProd) {
                 const slug_ = await createSlug(oldItem.title, 'product')
-                await specPool.query(specProductFields, [oldItem.title, oldItem.description, oldItem.body.replace(/'/g, "\\'"), oldItem.price, 0, 0, oldItem.rating_points, oldItem.rating_count, catIds[oldItem.folder_id].new, oldItem.thumbnail ? oldItem.thumbnail : '', slug_, oldItem.is_featured, oldItem.size, oldItem.is_new, oldItem.url, oldItem.url_type, oldItem.tags ? oldItem.tags : "", oldItem.title.split(' ').join(', '), oldItem.downloads, oldItem.is_active, oldItem.downloads, Math.ceil(Math.random() * 999999), Math.ceil(Math.random() * 2000)])
+                await specPool.query(specProductFields, [oldItem.title, oldItem.description, oldItem.body.replace(/'/g, "\\'"), oldItem.price, 0, 900, oldItem.rating_points ? oldItem.rating_points : Math.ceil(Math.random() * 5.5).toFixed(1), oldItem.rating_count ? oldItem.rating_count : Math.ceil(Math.random() * 1400), catIds[oldItem.folder_id].new, oldItem.thumbnail ? oldItem.thumbnail : '', slug_, oldItem.is_featured, oldItem.size, oldItem.is_new, oldItem.url, oldItem.url_type, oldItem.tags ? oldItem.tags : "", oldItem.title.split(' ').join(', '), oldItem.downloads, oldItem.is_active, oldItem.downloads, Math.ceil(Math.random() * 999999), Math.ceil(Math.random() * 2000), new Date()])
             }
         }
         console.log('done!')
@@ -154,7 +155,7 @@ const transUncatProducts = async () => {
             [defCatName]
         );
         let catId;
-        if(defCatCheck[0].count === 0) {
+        if (defCatCheck[0].count === 0) {
             const slug_ = slug(defCatName)
             const insert = await specPool.query(`
             INSERT INTO category (title, description, image, items, slug, active, type, new)
@@ -164,21 +165,25 @@ const transUncatProducts = async () => {
         } else {
             catId = defCatCheck[0].id
         }
-            const [oldProd, _] = await trgPool.query(
-                'SELECT * FROM res_files WHERE folder_id = 0',
-                []
-            )
+        const [oldProd, _] = await trgPool.query(
+            'SELECT * FROM res_files WHERE folder_id = 0',
+            []
+        )
 
-            for (const oldItem of oldProd) {
-                   const slug_ = await createSlug(oldItem.title, 'product')
-                   await specPool.query(specProductFields,
-                    [oldItem.title, oldItem.description, oldItem.body.replace(/'/g, "\\'"), oldItem.price, 0, 0, oldItem.rating_points, oldItem.rating_count, catId, oldItem.thumbnail ? oldItem.thumbnail : '', slug_, oldItem.is_featured, oldItem.size, oldItem.is_new, oldItem.url, oldItem.url_type, oldItem.tags ? oldItem.tags : "", oldItem.title.split(' ').join(', '), oldItem.downloads, oldItem.is_active, oldItem.downloads, Math.ceil(Math.random() * 999999), Math.ceil(Math.random() * 2000)])
-            }
+        for (const oldItem of oldProd) {
+            const slug_ = await createSlug(oldItem.title, 'product')
+            await specPool.query(specProductFields,
+                [oldItem.title, oldItem.description, oldItem.body.replace(/'/g, "\\'"), oldItem.price, 0, 900, oldItem.rating_points ? oldItem.rating_points : Math.ceil(Math.random() * 5.5).toFixed(1), oldItem.rating_count ? oldItem.rating_count : Math.ceil(Math.random() * 1400), catId, oldItem.thumbnail ? oldItem.thumbnail : '', slug_, oldItem.is_featured, oldItem.size, oldItem.is_new, oldItem.url, oldItem.url_type, oldItem.tags ? oldItem.tags : "", oldItem.title.split(' ').join(', '), oldItem.downloads, oldItem.is_active, oldItem.downloads, Math.ceil(Math.random() * 999999), Math.ceil(Math.random() * 2000), new Date()])
         }
-        console.log('done!')
     }
-// resetTables()
-// transCats()
-// fillCats()
-// transProducts();
-// transUncatProducts();
+    console.log('done!')
+}
+await resetTables().then(async () => {
+    await transCats().then(async () => {
+        await fillCats().then(async () => {
+            await transProducts().then(async () => {
+                await transUncatProducts().then(() => console.log('transforming done!'));
+            });
+        })
+    })
+})
